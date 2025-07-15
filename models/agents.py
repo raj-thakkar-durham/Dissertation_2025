@@ -507,8 +507,11 @@ if __name__ == "__main__":
     print("Agent classes defined successfully!")
     
     # Create mock model for testing
-    class MockModel:
+    from mesa import Model
+    
+    class MockModel(Model):
         def __init__(self):
+            super().__init__()
             self.current_price = 1800
             self.current_day = 0
             self.external_data = {'sentiment': 0.1}
