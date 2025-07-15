@@ -198,7 +198,7 @@ The methodology provides a framework for applying cellular automata and agent-ba
 
 ---
 
-**Author**: Research Student, Durham University  
-**Supervisor**: [Faculty Supervisor Name]  
+**Author**: Raj Thakkar, Durham University  
+**Supervisor**: [GADOULEAU, MAXIMILIEN]  
 **Date**: 2025  
 **Purpose**: Academic Research Only
