@@ -4,7 +4,7 @@
 
 from joblib import Parallel, delayed
 import multiprocessing as mp
-from mesa.batchrunner import BatchRunner
+from mesa import batch_run
 import pandas as pd
 import numpy as np
 from itertools import product
@@ -117,30 +117,26 @@ class ParallelSimulationRunner:
                 "PnL": lambda a: sum(a.pnl_history) if a.pnl_history else 0
             }
             
-            # Create BatchRunner
-            batch_runner = BatchRunner(
+            # Use Mesa's batch_run for parallel execution
+            results = batch_run(
                 model_cls=self.model_class,
-                variable_parameters=variable_params,
-                fixed_parameters=fixed_params,
+                parameters=variable_params,
                 iterations=num_iterations,
                 max_steps=fixed_params.get('num_days', 252),
-                model_reporters=model_reporters,
-                agent_reporters=agent_reporters
+                number_processes=self.num_cores,
+                data_collection_period=1,
+                display_progress=True
             )
             
-            # Run batch
-            batch_runner.run_all()
-            
-            # Get results
-            model_data = batch_runner.get_model_vars_dataframe()
-            agent_data = batch_runner.get_agent_vars_dataframe()
+            # Convert results to DataFrame
+            model_data = pd.DataFrame(results)
             
             print(f"Batch simulation completed: {len(model_data)} model runs")
             
             return {
                 'model_data': model_data,
-                'agent_data': agent_data,
-                'batch_runner': batch_runner
+                'agent_data': pd.DataFrame(),  # batch_run doesn't separate agent data
+                'results': results
             }
             
         except Exception as e:

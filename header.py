@@ -24,7 +24,7 @@ from mesa import Agent, Model
 from mesa.time import RandomActivation
 from mesa.space import MultiGrid
 from mesa.datacollection import DataCollector
-from mesa.batchrunner import BatchRunner
+from mesa import batch_run
 
 from joblib import Parallel, delayed
 from numba import jit

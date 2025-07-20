@@ -9,7 +9,7 @@ from mesa.datacollection import DataCollector
 import numpy as np
 import pandas as pd
 import random
-from .agents import HerderAgent, ContrarianAgent, TrendFollowerAgent, NoiseTraderAgent
+from models.agents import HerderAgent, ContrarianAgent, TrendFollowerAgent, NoiseTraderAgent
 
 class GoldMarketModel(Model):
     """
