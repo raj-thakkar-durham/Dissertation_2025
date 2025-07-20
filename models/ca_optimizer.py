@@ -138,7 +138,7 @@ class CARuleOptimizer:
         Returns:
             CellularAutomaton: Test CA instance
         """
-        from cellular_automaton import CellularAutomaton
+        from .cellular_automaton import CellularAutomaton
         return CellularAutomaton(
             grid_size=self.ca_model.grid_size,
             num_states=self.ca_model.num_states
@@ -491,7 +491,7 @@ class CARuleOptimizer:
 # Example usage and testing
 if __name__ == "__main__":
     # Create sample data for testing
-    from cellular_automaton import CellularAutomaton
+    from .cellular_automaton import CellularAutomaton
     
     # Initialize CA
     ca = CellularAutomaton(grid_size=(10, 10), num_states=3)
