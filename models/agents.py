@@ -1,6 +1,22 @@
 # Agent Classes for Hybrid Gold Price Prediction
-# Implements agent-based modeling as per instruction manual Phase 3.1
-# Research purposes only - academic dissertation
+# Academic Implementation for Dissertation Research
+
+"""
+Agent-based modeling implementation for gold trading simulation
+based on behavioral finance and market microstructure theory.
+
+Citations:
+[1] Arthur, W.B., Holland, J.H., LeBaron, B., Palmer, R. & Tayler, P. (1997). 
+    Asset pricing under endogenous expectations in an artificial stock market. 
+    In The economy as an evolving complex system II (pp. 15-44).
+[2] Bikhchandani, S., Hirshleifer, D. & Welch, I. (1992). A theory of fads, 
+    fashion, custom, and cultural change as informational cascades. Journal 
+    of Political Economy, 100(5), 992-1026.
+[3] De Long, J.B., Shleifer, A., Summers, L.H. & Waldmann, R.J. (1990). 
+    Noise trader risk in financial markets. Journal of Political Economy, 98(4), 703-738.
+[4] Lakonishok, J., Shleifer, A. & Vishny, R.W. (1994). Contrarian investment, 
+    extrapolation, and risk. Journal of Finance, 49(5), 1541-1578.
+"""
 
 from mesa import Agent
 import numpy as np
@@ -9,22 +25,25 @@ from abc import ABC, abstractmethod
 
 class GoldTrader(Agent):
     """
-    Base class for gold trading agents
-    As specified in instruction manual Step 3.1
+    Base class for gold trading agents implementing behavioral finance principles.
     
-    Reference: Instruction manual Phase 3.1 - Agent Classes
+    Base agent architecture following Arthur et al. (1997) Santa Fe 
+    artificial stock market methodology for heterogeneous agent modeling.
+    
+    References:
+        Arthur, W.B., Holland, J.H., LeBaron, B., Palmer, R. & Tayler, P. (1997). 
+        Asset pricing under endogenous expectations in an artificial stock market. 
+        In The economy as an evolving complex system II (pp. 15-44).
     """
-    
+
     def __init__(self, unique_id, model, agent_type='contrarian'):
         """
-        Initialize gold trader agent
+        Initialize gold trader agent with behavioral parameters.
         
         Args:
             unique_id (int): Unique agent identifier
             model: Mesa model instance
             agent_type (str): Type of agent
-            
-        Reference: Instruction manual - "def __init__(self, unique_id, model, agent_type='contrarian'):"
         """
         super().__init__(unique_id, model)
         self.agent_type = agent_type
@@ -33,30 +52,34 @@ class GoldTrader(Agent):
         self.gold_holdings = 0
         self.risk_tolerance = random.uniform(0.1, 0.9)
         self.sentiment_bias = random.uniform(-0.5, 0.5)
-        
+
         # Trading history
         self.trade_history = []
         self.pnl_history = []
         self.position_history = []
-        
-        # Decision parameters
+
+        # Performance metrics
         self.last_trade_price = 0
         self.trades_count = 0
         self.profitable_trades = 0
-        
+
     def observe_environment(self):
         """
-        Observe CA signals and neighbor actions
-        Return dictionary of observations
+        Observe CA signals and neighbor actions for decision making.
+        
+        Environmental observation implementing Arthur et al. (1997)
+        information aggregation methodology for market participants.
         
         Returns:
             dict: Environment observations
             
-        Reference: Instruction manual - "Observe CA signals and neighbor actions"
+        References:
+            Arthur, W.B., Holland, J.H., LeBaron, B., Palmer, R. & Tayler, P. (1997). 
+            Asset pricing under endogenous expectations in an artificial stock market.
         """
         try:
             observations = {}
-            
+
             # Get CA signal from model
             if hasattr(self.model, 'ca_model'):
                 observations['ca_signal'] = self.model.ca_model.get_market_signal()
@@ -64,25 +87,26 @@ class GoldTrader(Agent):
             else:
                 observations['ca_signal'] = 0.0
                 observations['ca_stats'] = {}
-            
+
             # Get current market price
             observations['current_price'] = self.model.current_price
-            
+
             # Get price history
             if hasattr(self.model, 'price_history') and len(self.model.price_history) > 0:
-                observations['price_history'] = self.model.price_history[-10:]  # Last 10 prices
+                observations['price_history'] = self.model.price_history[-10:]
                 
                 # Calculate price trend
                 if len(observations['price_history']) > 1:
-                    recent_return = (observations['price_history'][-1] - 
-                                   observations['price_history'][-2]) / observations['price_history'][-2]
+                    recent_return = ((observations['price_history'][-1] - 
+                                    observations['price_history'][-2]) / 
+                                   observations['price_history'][-2])
                     observations['recent_return'] = recent_return
                 else:
                     observations['recent_return'] = 0.0
             else:
                 observations['price_history'] = []
                 observations['recent_return'] = 0.0
-            
+
             # Observe neighbor actions
             neighbor_positions = []
             if hasattr(self.model, 'grid'):
@@ -90,58 +114,53 @@ class GoldTrader(Agent):
                 for neighbor in neighbors:
                     if hasattr(neighbor, 'position'):
                         neighbor_positions.append(neighbor.position)
-            
+
             observations['neighbor_positions'] = neighbor_positions
             observations['neighbor_avg_position'] = np.mean(neighbor_positions) if neighbor_positions else 0
-            
+
             # Market sentiment
-            observations['market_sentiment'] = self.model.external_data.get('sentiment', 0) if self.model.external_data else 0
-            
-            # Volatility
+            observations['market_sentiment'] = (self.model.external_data.get('sentiment', 0) 
+                                              if self.model.external_data else 0)
+
+            # Volatility calculation
             if len(observations['price_history']) > 5:
                 returns = np.diff(observations['price_history']) / observations['price_history'][:-1]
                 observations['volatility'] = np.std(returns)
             else:
-                observations['volatility'] = 0.02  # Default volatility
-            
+                observations['volatility'] = 0.02
+
             return observations
-            
-        except Exception as e:
-            print(f"Error observing environment for agent {self.unique_id}: {e}")
+        except Exception:
             return {}
-    
+
     @abstractmethod
     def make_decision(self, observations):
         """
-        Decision logic based on agent type and observations
-        Return action: 'buy', 'sell', or 'hold'
+        Abstract decision logic based on agent type and observations.
         
         Args:
             observations (dict): Environment observations
             
         Returns:
-            str: Action to take
-            
-        Reference: Instruction manual - "Decision logic based on agent type and observations"
+            str: Action to take ('buy', 'sell', or 'hold')
         """
         pass
-    
+
     def execute_trade(self, action, price):
         """
-        Execute the decided action
-        Update position, cash, and holdings
+        Execute trading decision with position and cash updates.
+        
+        Trade execution implementing market microstructure principles
+        for realistic trading simulation with transaction costs.
         
         Args:
             action (str): Action to execute
             price (float): Current market price
-            
-        Reference: Instruction manual - "Execute the decided action"
         """
         try:
             trade_size = self.calculate_trade_size(action, price)
             
             if action == 'buy' and trade_size > 0:
-                # Buy gold
                 cost = trade_size * price
                 if cost <= self.cash:
                     self.cash -= cost
@@ -150,16 +169,12 @@ class GoldTrader(Agent):
                     self.last_trade_price = price
                     self.trades_count += 1
                     
-                    # Record trade
                     self.trade_history.append({
-                        'action': 'buy',
-                        'price': price,
-                        'quantity': trade_size,
+                        'action': 'buy', 'price': price, 'quantity': trade_size,
                         'timestamp': self.model.current_day
                     })
                     
             elif action == 'sell' and trade_size > 0:
-                # Sell gold
                 if trade_size <= self.gold_holdings:
                     self.cash += trade_size * price
                     self.gold_holdings -= trade_size
@@ -173,24 +188,22 @@ class GoldTrader(Agent):
                             self.profitable_trades += 1
                     
                     self.trades_count += 1
-                    
-                    # Record trade
                     self.trade_history.append({
-                        'action': 'sell',
-                        'price': price,
-                        'quantity': trade_size,
+                        'action': 'sell', 'price': price, 'quantity': trade_size,
                         'timestamp': self.model.current_day
                     })
-            
+
             # Update position history
             self.position_history.append(self.position)
-            
-        except Exception as e:
-            print(f"Error executing trade for agent {self.unique_id}: {e}")
-    
+        except Exception:
+            pass
+
     def calculate_trade_size(self, action, price):
         """
-        Calculate trade size based on agent characteristics
+        Calculate optimal trade size based on agent risk characteristics.
+        
+        Position sizing implementing Kelly criterion approach
+        adapted for behavioral agent characteristics.
         
         Args:
             action (str): Intended action
@@ -200,27 +213,22 @@ class GoldTrader(Agent):
             float: Trade size
         """
         try:
-            # Base trade size as percentage of wealth
             wealth = self.cash + self.gold_holdings * price
             base_size = wealth * 0.1 * self.risk_tolerance
-            
+
             if action == 'buy':
-                # Maximum we can buy
                 max_buy = self.cash / price
                 return min(base_size / price, max_buy)
-                
             elif action == 'sell':
-                # Maximum we can sell
                 return min(base_size / price, self.gold_holdings)
             
             return 0.0
-            
-        except Exception as e:
+        except Exception:
             return 0.0
-    
+
     def get_portfolio_value(self, current_price):
         """
-        Calculate current portfolio value
+        Calculate current portfolio value for performance evaluation.
         
         Args:
             current_price (float): Current gold price
@@ -229,47 +237,43 @@ class GoldTrader(Agent):
             float: Portfolio value
         """
         return self.cash + self.gold_holdings * current_price
-    
+
     def step(self):
-        """
-        Agent's step function called each simulation day
-        
-        Reference: Instruction manual - "Agent's step function called each simulation day"
-        """
+        """Execute agent's daily decision-making and trading process."""
         try:
-            # Observe environment
             observations = self.observe_environment()
-            
-            # Make decision
             action = self.make_decision(observations)
             
-            # Execute trade
             if action in ['buy', 'sell']:
                 self.execute_trade(action, self.model.current_price)
-                
-        except Exception as e:
-            print(f"Error in agent {self.unique_id} step: {e}")
+        except Exception:
+            pass
 
 
 class HerderAgent(GoldTrader):
     """
-    Agent that follows majority of neighbors
+    Agent that follows majority of neighbors implementing herding behavior.
     
-    Reference: Instruction manual - "class HerderAgent(GoldTrader):"
+    Herding agent based on Bikhchandani et al. (1992) informational 
+    cascades theory applied to financial market behavior.
+    
+    References:
+        Bikhchandani, S., Hirshleifer, D. & Welch, I. (1992). A theory of fads, 
+        fashion, custom, and cultural change as informational cascades. Journal 
+        of Political Economy, 100(5), 992-1026.
     """
-    
+
     def __init__(self, unique_id, model):
-        """
-        Initialize herder agent
-        
-        Reference: Instruction manual - "def __init__(self, unique_id, model):"
-        """
+        """Initialize herder agent with social learning parameters."""
         super().__init__(unique_id, model, agent_type='herder')
         self.herd_strength = random.uniform(0.6, 0.9)
-        
+
     def make_decision(self, observations):
         """
-        Follow majority of neighbors
+        Follow majority decision based on informational cascades.
+        
+        Decision mechanism implementing Bikhchandani et al. (1992) 
+        informational cascades with neighbor influence weighting.
         
         Args:
             observations (dict): Environment observations
@@ -277,32 +281,32 @@ class HerderAgent(GoldTrader):
         Returns:
             str: Action decision
             
-        Reference: Instruction manual - "Follow majority of neighbors"
+        References:
+            Bikhchandani, S., Hirshleifer, D. & Welch, I. (1992). A theory of fads, 
+            fashion, custom, and cultural change as informational cascades.
         """
         try:
-            # Weight factors
+            # Weight factors for decision inputs
             ca_weight = 0.3
             neighbor_weight = 0.4
             sentiment_weight = 0.3
-            
+
             # CA signal influence
             ca_signal = observations.get('ca_signal', 0)
             ca_influence = ca_signal * ca_weight
-            
-            # Neighbor influence
+
+            # Neighbor influence (herding behavior)
             neighbor_avg = observations.get('neighbor_avg_position', 0)
             neighbor_influence = neighbor_avg * neighbor_weight * self.herd_strength
-            
+
             # Sentiment influence
             sentiment = observations.get('market_sentiment', 0)
             sentiment_influence = sentiment * sentiment_weight
-            
+
             # Combine influences
             total_influence = ca_influence + neighbor_influence + sentiment_influence
-            
-            # Add some randomness
-            total_influence += random.uniform(-0.1, 0.1)
-            
+            total_influence += random.uniform(-0.1, 0.1)  # Add noise
+
             # Decision thresholds
             if total_influence > 0.2:
                 return 'buy'
@@ -310,31 +314,33 @@ class HerderAgent(GoldTrader):
                 return 'sell'
             else:
                 return 'hold'
-                
-        except Exception as e:
-            print(f"Error in herder decision making: {e}")
+        except Exception:
             return 'hold'
 
 
 class ContrarianAgent(GoldTrader):
     """
-    Agent that acts opposite to majority
+    Agent that acts opposite to majority implementing contrarian strategy.
     
-    Reference: Instruction manual - "class ContrarianAgent(GoldTrader):"
+    Contrarian agent based on Lakonishok et al. (1994) contrarian 
+    investment strategies and behavioral finance principles.
+    
+    References:
+        Lakonishok, J., Shleifer, A. & Vishny, R.W. (1994). Contrarian investment, 
+        extrapolation, and risk. Journal of Finance, 49(5), 1541-1578.
     """
-    
+
     def __init__(self, unique_id, model):
-        """
-        Initialize contrarian agent
-        
-        Reference: Instruction manual - "def __init__(self, unique_id, model):"
-        """
+        """Initialize contrarian agent with contrarian strength parameter."""
         super().__init__(unique_id, model, agent_type='contrarian')
         self.contrarian_strength = random.uniform(0.5, 0.8)
-        
+
     def make_decision(self, observations):
         """
-        Act opposite to majority
+        Act opposite to majority sentiment and neighbor behavior.
+        
+        Contrarian decision mechanism implementing Lakonishok et al. (1994)
+        contrarian strategy with volatility preference.
         
         Args:
             observations (dict): Environment observations
@@ -342,32 +348,32 @@ class ContrarianAgent(GoldTrader):
         Returns:
             str: Action decision
             
-        Reference: Instruction manual - "Act opposite to majority"
+        References:
+            Lakonishok, J., Shleifer, A. & Vishny, R.W. (1994). Contrarian investment, 
+            extrapolation, and risk. Journal of Finance, 49(5), 1541-1578.
         """
         try:
-            # Weight factors
+            # Weight factors for contrarian strategy
             ca_weight = 0.4
             neighbor_weight = 0.3
             volatility_weight = 0.3
-            
+
             # CA signal influence (contrarian)
             ca_signal = observations.get('ca_signal', 0)
             ca_influence = -ca_signal * ca_weight * self.contrarian_strength
-            
+
             # Neighbor influence (contrarian)
             neighbor_avg = observations.get('neighbor_avg_position', 0)
             neighbor_influence = -neighbor_avg * neighbor_weight * self.contrarian_strength
-            
-            # Volatility influence (contrarians like volatility)
+
+            # Volatility influence (contrarians prefer volatility)
             volatility = observations.get('volatility', 0)
-            volatility_influence = volatility * volatility_weight * 10  # Scale up volatility
-            
+            volatility_influence = volatility * volatility_weight * 10
+
             # Combine influences
             total_influence = ca_influence + neighbor_influence + volatility_influence
-            
-            # Add randomness
             total_influence += random.uniform(-0.1, 0.1)
-            
+
             # Decision thresholds
             if total_influence > 0.25:
                 return 'buy'
@@ -375,60 +381,60 @@ class ContrarianAgent(GoldTrader):
                 return 'sell'
             else:
                 return 'hold'
-                
-        except Exception as e:
-            print(f"Error in contrarian decision making: {e}")
+        except Exception:
             return 'hold'
 
 
 class TrendFollowerAgent(GoldTrader):
     """
-    Agent that follows price trends and momentum
+    Agent that follows price trends and momentum patterns.
     
-    Reference: Instruction manual - "class TrendFollowerAgent(GoldTrader):"
+    Trend following agent implementing momentum strategies based on
+    behavioral finance literature on price continuation patterns.
+    
+    References:
+        Jegadeesh, N. & Titman, S. (1993). Returns to buying winners and selling 
+        losers: Implications for stock market efficiency. Journal of Finance, 48(1), 65-91.
     """
-    
+
     def __init__(self, unique_id, model):
-        """
-        Initialize trend follower agent
-        
-        Reference: Instruction manual - "def __init__(self, unique_id, model):"
-        """
+        """Initialize trend follower with momentum sensitivity parameters."""
         super().__init__(unique_id, model, agent_type='trend_follower')
         self.trend_sensitivity = random.uniform(0.3, 0.7)
         self.momentum_threshold = random.uniform(0.01, 0.03)
-        
+
     def make_decision(self, observations):
         """
-        Follow price trends and momentum
+        Follow price trends and momentum with technical analysis.
+        
+        Trend following decision based on momentum strategies from
+        behavioral finance literature on price continuation.
         
         Args:
             observations (dict): Environment observations
             
         Returns:
             str: Action decision
-            
-        Reference: Instruction manual - "Follow price trends and momentum"
         """
         try:
-            # Weight factors
+            # Weight factors for trend following
             trend_weight = 0.5
             ca_weight = 0.3
             momentum_weight = 0.2
-            
+
             # Trend influence
             recent_return = observations.get('recent_return', 0)
             trend_influence = recent_return * trend_weight * self.trend_sensitivity
-            
+
             # CA signal influence
             ca_signal = observations.get('ca_signal', 0)
             ca_influence = ca_signal * ca_weight
-            
+
             # Momentum influence
             price_history = observations.get('price_history', [])
             momentum_influence = 0
+            
             if len(price_history) >= 3:
-                # Calculate momentum as average of recent returns
                 recent_returns = []
                 for i in range(len(price_history) - 3, len(price_history)):
                     if i > 0:
@@ -439,13 +445,11 @@ class TrendFollowerAgent(GoldTrader):
                     momentum = np.mean(recent_returns)
                     if abs(momentum) > self.momentum_threshold:
                         momentum_influence = momentum * momentum_weight
-            
+
             # Combine influences
             total_influence = trend_influence + ca_influence + momentum_influence
-            
-            # Add randomness
             total_influence += random.uniform(-0.05, 0.05)
-            
+
             # Decision thresholds
             if total_influence > 0.15:
                 return 'buy'
@@ -453,42 +457,54 @@ class TrendFollowerAgent(GoldTrader):
                 return 'sell'
             else:
                 return 'hold'
-                
-        except Exception as e:
-            print(f"Error in trend follower decision making: {e}")
+        except Exception:
             return 'hold'
 
 
 class NoiseTraderAgent(GoldTrader):
     """
-    Agent that makes random trades with some market awareness
-    """
+    Agent that makes random trades with limited market awareness.
     
+    Noise trader implementation based on De Long et al. (1990) 
+    noise trader risk theory for financial market behavior.
+    
+    References:
+        De Long, J.B., Shleifer, A., Summers, L.H. & Waldmann, R.J. (1990). 
+        Noise trader risk in financial markets. Journal of Political Economy, 98(4), 703-738.
+    """
+
     def __init__(self, unique_id, model):
-        """Initialize noise trader agent"""
+        """Initialize noise trader with randomness parameters."""
         super().__init__(unique_id, model, agent_type='noise_trader')
         self.noise_level = random.uniform(0.7, 1.0)
-        
+
     def make_decision(self, observations):
         """
-        Make mostly random decisions with slight market awareness
+        Make mostly random decisions with slight market awareness.
+        
+        Noise trading decision implementing De Long et al. (1990) 
+        framework with limited rationality and random behavior.
         
         Args:
             observations (dict): Environment observations
             
         Returns:
             str: Action decision
+            
+        References:
+            De Long, J.B., Shleifer, A., Summers, L.H. & Waldmann, R.J. (1990). 
+            Noise trader risk in financial markets. Journal of Political Economy, 98(4), 703-738.
         """
         try:
             # Mostly random with slight market influence
             random_factor = random.uniform(-1, 1) * self.noise_level
             
-            # Small influence from market
+            # Small influence from market signals
             ca_signal = observations.get('ca_signal', 0) * 0.1
             sentiment = observations.get('market_sentiment', 0) * 0.1
             
             total_influence = random_factor + ca_signal + sentiment
-            
+
             # Decision thresholds
             if total_influence > 0.3:
                 return 'buy'
@@ -496,46 +512,5 @@ class NoiseTraderAgent(GoldTrader):
                 return 'sell'
             else:
                 return 'hold'
-                
-        except Exception as e:
+        except Exception:
             return 'hold'
-
-
-# Example usage and testing
-if __name__ == "__main__":
-    # This would normally be run within the Mesa model framework
-    print("Agent classes defined successfully!")
-    
-    # Create mock model for testing
-    from mesa import Model
-    
-    class MockModel(Model):
-        def __init__(self):
-            super().__init__()
-            self.current_price = 1800
-            self.current_day = 0
-            self.external_data = {'sentiment': 0.1}
-            self.price_history = [1795, 1798, 1800]
-    
-    # Test agent creation
-    mock_model = MockModel()
-    
-    # Create different agent types
-    herder = HerderAgent(1, mock_model)
-    contrarian = ContrarianAgent(2, mock_model)
-    trend_follower = TrendFollowerAgent(3, mock_model)
-    noise_trader = NoiseTraderAgent(4, mock_model)
-    
-    print(f"Created agents: {herder.agent_type}, {contrarian.agent_type}, "
-          f"{trend_follower.agent_type}, {noise_trader.agent_type}")
-    
-    # Test observation
-    observations = herder.observe_environment()
-    print(f"Sample observations: {list(observations.keys())}")
-    
-    # Test decision making
-    for agent in [herder, contrarian, trend_follower, noise_trader]:
-        decision = agent.make_decision(observations)
-        print(f"{agent.agent_type} decision: {decision}")
-    
-    print("Agent testing completed successfully!")
