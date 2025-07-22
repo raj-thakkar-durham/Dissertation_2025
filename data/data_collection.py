@@ -30,7 +30,6 @@ class DataCollector:
         """
         self.start_date = start_date
         self.end_date = end_date
-        print(f"DataCollector initialized for period: {start_date} to {end_date}")
         
     def fetch_gold_data(self):
         """
@@ -66,11 +65,9 @@ class DataCollector:
                     else:
                         gold_data[col] = gold_data.get('Adj Close', 1800.0)  # Default value
             
-            print(f"Successfully fetched {len(gold_data)} days of gold data")
             return gold_data
             
         except Exception as e:
-            print(f"Error fetching gold data: {e}")
             return pd.DataFrame()
     
     def fetch_oil_data(self):
@@ -101,11 +98,9 @@ class DataCollector:
                 oil_data = oil_data[['Date']].copy()
                 oil_data['Oil_Close'] = 75.0  # Default oil price
             
-            print(f"Successfully fetched {len(oil_data)} days of oil data")
             return oil_data
             
         except Exception as e:
-            print(f"Error fetching oil data: {e}")
             return pd.DataFrame()
     
     def fetch_market_indices(self):
@@ -149,11 +144,9 @@ class DataCollector:
             # Merge the indices
             indices_data = pd.merge(sp500_data, usd_data, on='Date', how='outer')
             
-            print(f"Successfully fetched {len(indices_data)} days of market indices data")
             return indices_data
             
         except Exception as e:
-            print(f"Error fetching market indices: {e}")
             return pd.DataFrame()
     
     def merge_market_data(self):
@@ -167,12 +160,9 @@ class DataCollector:
         Reference: Instruction manual - "Combine all market data into single DataFrame"
         """
         try:
-            print("Fetching market data...")
-            
             # Fetch all data
             gold_data = self.fetch_gold_data()
             if gold_data.empty:
-                print("Warning: No gold data available, creating synthetic data")
                 # Create synthetic gold data as fallback
                 date_range = pd.date_range(start=self.start_date, end=self.end_date, freq='D')
                 gold_data = pd.DataFrame({
@@ -183,7 +173,6 @@ class DataCollector:
                     'Close': 1800,
                     'Volume': 100000
                 })
-                print(f"Created {len(gold_data)} days of synthetic gold data")
             
             # Start with gold data as base
             merged_data = gold_data.copy()
@@ -192,18 +181,14 @@ class DataCollector:
             oil_data = self.fetch_oil_data()
             if not oil_data.empty:
                 merged_data = pd.merge(merged_data, oil_data, on='Date', how='left')
-                print("Oil data merged successfully")
             else:
-                print("Warning: No oil data available, using default values")
                 merged_data['Oil_Close'] = 75.0  # Default oil price
             
             # Fetch and merge indices data
             indices_data = self.fetch_market_indices()
             if not indices_data.empty:
                 merged_data = pd.merge(merged_data, indices_data, on='Date', how='left')
-                print("Market indices data merged successfully")
             else:
-                print("Warning: No indices data available, using default values")
                 merged_data['SP500_Close'] = 4000.0  # Default S&P 500
                 merged_data['USD_Close'] = 100.0    # Default USD index
             
@@ -220,22 +205,15 @@ class DataCollector:
             required_columns = ['Close']
             for col in required_columns:
                 if col not in merged_data.columns:
-                    print(f"Warning: Required column '{col}' missing, using default values")
                     merged_data[col] = 1800.0  # Default gold price
             
             # Rename Close to gold_price for clarity
             if 'Close' in merged_data.columns:
                 merged_data = merged_data.rename(columns={'Close': 'gold_price'})
             
-            print(f"Successfully merged market data: {len(merged_data)} trading days")
-            print(f"Columns available: {list(merged_data.columns)}")
-            
             return merged_data
             
         except Exception as e:
-            print(f"Error merging market data: {e}")
-            print("Creating fallback synthetic data...")
-            
             # Create fallback synthetic data
             try:
                 date_range = pd.date_range(start=self.start_date, end=self.end_date, freq='D')
@@ -247,11 +225,9 @@ class DataCollector:
                     'Volume': 100000
                 }, index=date_range)
                 
-                print(f"Created {len(fallback_data)} days of fallback synthetic data")
                 return fallback_data
                 
             except Exception as fallback_error:
-                print(f"Error creating fallback data: {fallback_error}")
                 return pd.DataFrame()
     
     def save_data(self, data, filename):
@@ -285,8 +261,6 @@ class DataCollector:
                 self.start_date = start_date
             if end_date:
                 self.end_date = end_date
-            
-            print(f"Collecting comprehensive market data for {self.start_date} to {self.end_date}")
             
             # Use the merge_market_data method which has better error handling
             merged_data = self.merge_market_data()

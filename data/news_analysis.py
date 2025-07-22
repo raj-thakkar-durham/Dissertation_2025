@@ -51,8 +51,6 @@ class SentimentAnalyzer:
             'rate hike', 'sell-off', 'correction', 'overbought', 'resistance'
         ]
         
-        print("SentimentAnalyzer initialized with VADER and gold market context")
-        
     def fetch_news_headlines(self, date):
         """
         Generate contextual news headlines for gold market analysis
@@ -122,7 +120,6 @@ class SentimentAnalyzer:
             return headlines
             
         except Exception as e:
-            print(f"Error generating headlines for {date}: {e}")
             return []
     
     def calculate_daily_sentiment(self, headlines):

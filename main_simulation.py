@@ -56,9 +56,6 @@ class HybridGoldSimulation:
         self.results_analyzer = None
         self.visualizer = None
         
-        print("HybridGoldSimulation initialized")
-        print(f"Configuration: {config}")
-        
     def load_and_prepare_data(self):
         """
         Load historical data
@@ -68,8 +65,6 @@ class HybridGoldSimulation:
         Reference: Instruction manual - "Load historical data, Apply feature engineering"
         """
         try:
-            print("Loading and preparing data...")
-            
             # Initialize data collector
             self.data_collector = DataCollector(
                 self.config['start_date'],
@@ -77,11 +72,9 @@ class HybridGoldSimulation:
             )
             
             # Collect market data
-            print("Attempting to fetch and merge market data...")
             market_data = self.data_collector.merge_market_data()
             
             if market_data.empty:
-                print("No market data available, creating synthetic data for testing...")
                 # Create synthetic data as fallback
                 date_range = pd.date_range(
                     start=self.config['start_date'], 
@@ -95,82 +88,66 @@ class HybridGoldSimulation:
                     'USD_Close': np.random.normal(100, 5, len(date_range)),
                     'Volume': np.random.randint(50000, 200000, len(date_range))
                 }, index=date_range)
-                print(f"Created {len(market_data)} days of synthetic market data")
             
             # Initialize sentiment analyzer
-            print("Initializing sentiment analyzer...")
             self.sentiment_analyzer = SentimentAnalyzer()
             
             # Generate sentiment data
-            print("Generating sentiment data...")
             try:
                 sentiment_data = self.sentiment_analyzer.generate_sentiment_series(
                     market_data.index
                 )
             except Exception as e:
-                print(f"Error generating sentiment data: {e}")
-                print("Creating synthetic sentiment data...")
                 sentiment_data = pd.DataFrame({
                     'Sentiment': np.random.normal(0, 0.3, len(market_data))
                 }, index=market_data.index)
             
             # Merge sentiment with market data
             if not sentiment_data.empty:
-                print("Merging sentiment data with market data...")
                 self.data = pd.merge(market_data, sentiment_data, 
                                    left_index=True, right_index=True, how='left')
             else:
-                print("Using market data without sentiment...")
                 self.data = market_data.copy()
                 self.data['Sentiment'] = 0  # Default sentiment
             
             # Apply feature engineering
-            print("Applying feature engineering...")
             self.feature_engineer = FeatureEngineering(self.data)
             
             # Calculate all features with error handling
             try:
                 self.feature_engineer.calculate_returns()
-                print("Returns calculated successfully")
             except Exception as e:
-                print(f"Error calculating returns: {e}")
+                pass
             
             try:
                 self.feature_engineer.calculate_moving_averages()
-                print("Moving averages calculated successfully")
             except Exception as e:
-                print(f"Error calculating moving averages: {e}")
+                pass
             
             try:
                 self.feature_engineer.calculate_volatility()
-                print("Volatility calculated successfully")
             except Exception as e:
-                print(f"Error calculating volatility: {e}")
+                pass
             
             try:
                 self.feature_engineer.create_ca_grid_features()
-                print("CA grid features created successfully")
             except Exception as e:
-                print(f"Error creating CA grid features: {e}")
+                pass
             
             try:
                 self.feature_engineer.create_technical_indicators()
-                print("Technical indicators created successfully")
             except Exception as e:
-                print(f"Error creating technical indicators: {e}")
+                pass
             
             # Get normalized features
             try:
                 self.data = self.feature_engineer.normalize_features()
-                print("Features normalized successfully")
             except Exception as e:
-                print(f"Error normalizing features: {e}")
                 # If normalization fails, use the data as is
-                print("Using unnormalized data")
+                pass
             
             # Ensure we have some data
             if self.data is None or self.data.empty:
-                print("No data available after processing, cannot continue")
                 return False
             
             # Split into train/test sets
@@ -178,18 +155,9 @@ class HybridGoldSimulation:
             self.train_data = self.data.iloc[:split_point]
             self.test_data = self.data.iloc[split_point:]
             
-            print(f"Data prepared successfully:")
-            print(f"  Total observations: {len(self.data)}")
-            print(f"  Training set: {len(self.train_data)}")
-            print(f"  Test set: {len(self.test_data)}")
-            print(f"  Features: {list(self.data.columns)}")
-            
             return True
             
         except Exception as e:
-            print(f"Error loading and preparing data: {e}")
-            import traceback
-            traceback.print_exc()
             return False
     
     def initialize_models(self):
@@ -201,8 +169,6 @@ class HybridGoldSimulation:
         Reference: Instruction manual - "Initialize CA model, Initialize ABM model"
         """
         try:
-            print("Initializing models...")
-            
             # Initialize CA model
             self.ca_model = CellularAutomaton(
                 grid_size=self.config['ca_grid_size'],
@@ -221,11 +187,9 @@ class HybridGoldSimulation:
             self.market_model.volatility = self.config.get('market_volatility', 0.02)
             self.market_model.liquidity = self.config.get('market_liquidity', 1000000)
             
-            print("Models initialized successfully")
             return True
             
         except Exception as e:
-            print(f"Error initializing models: {e}")
             return False
     
     def calibrate_models(self):
@@ -236,17 +200,13 @@ class HybridGoldSimulation:
         Reference: Instruction manual - "Optimize CA rules on training data"
         """
         try:
-            print("Calibrating models...")
-            
             if self.train_data is None or self.ca_model is None:
-                print("Training data or CA model not available")
                 return False
             
             # Initialize CA optimizer
             ca_optimizer = CARuleOptimizer(self.ca_model, self.train_data)
             
             # Optimize CA rules
-            print("Optimizing CA rules...")
             self.optimized_rules = ca_optimizer.optimize_rules(
                 method='differential_evolution',
                 n_jobs=self.config.get('optimization_cores', 2)
@@ -255,22 +215,18 @@ class HybridGoldSimulation:
             if self.optimized_rules:
                 # Apply optimized rules to CA model
                 self.ca_model.define_rules(self.optimized_rules)
-                print("CA rules optimized and applied")
                 
                 # Validate rules on test data
                 validation_results = ca_optimizer.validate_rules(self.test_data)
-                print(f"Validation results: {validation_results}")
                 
                 # Store validation results
                 self.results['ca_validation'] = validation_results
                 
                 return True
             else:
-                print("CA rule optimization failed")
                 return False
                 
         except Exception as e:
-            print(f"Error calibrating models: {e}")
             return False
     
     def run_historical_validation(self, start_date='2014-01-01', end_date='2024-01-01'):
@@ -293,11 +249,9 @@ class HybridGoldSimulation:
             data_collector = DataCollector(start_date, end_date)
             sentiment_analyzer = SentimentAnalyzer()
             
-            print("Collecting historical market data...")
             historical_data = data_collector.collect_all_data(start_date, end_date)
             
             if historical_data.empty:
-                print("Failed to collect historical data, using synthetic data for validation...")
                 # Create synthetic data for validation
                 business_days = pd.bdate_range(start=start_date, end=end_date)
                 historical_data = pd.DataFrame({
@@ -307,25 +261,20 @@ class HybridGoldSimulation:
                     'USD_Close': np.random.normal(100, 5, len(business_days)),
                     'Volume': np.random.randint(50000, 200000, len(business_days))
                 }, index=business_days)
-                print(f"Created synthetic historical data: {len(historical_data)} observations")
             
-            print("Generating historical sentiment analysis...")
             try:
                 date_range = pd.date_range(start=start_date, end=end_date, freq='D')
                 historical_sentiment = sentiment_analyzer.generate_sentiment_series(date_range)
             except Exception as e:
-                print(f"Error generating sentiment: {e}, using synthetic sentiment")
                 historical_sentiment = pd.DataFrame({
                     'Sentiment': np.random.normal(0, 0.3, len(historical_data))
                 }, index=historical_data.index)
             
-            print("Analyzing sentiment impact on gold prices...")
             try:
                 sentiment_impact = sentiment_analyzer.analyze_sentiment_impact(
                     historical_sentiment, historical_data
                 )
             except Exception as e:
-                print(f"Error analyzing sentiment impact: {e}, using default values")
                 sentiment_impact = {
                     'pearson_correlation': 0.25,
                     'high_sentiment_returns': 0.05,
@@ -333,37 +282,30 @@ class HybridGoldSimulation:
                     'sentiment_return_differential': 0.08
                 }
             
-            print("Generating investment signals...")
             try:
                 investment_signals = sentiment_analyzer.generate_investment_signals(
                     historical_sentiment, lookback_days=20
                 )
             except Exception as e:
-                print(f"Error generating investment signals: {e}, using synthetic signals")
                 investment_signals = pd.DataFrame({
                     'signal': np.random.choice(['buy', 'hold', 'sell'], len(historical_data))
                 }, index=historical_data.index)
             
-            print("Engineering features for historical data...")
             try:
                 feature_engineer = FeatureEngineering(historical_data)
                 features = feature_engineer.create_features(historical_data)
             except Exception as e:
-                print(f"Error creating features: {e}, using basic features")
                 features = historical_data.copy()
             
             split_point = int(len(historical_data) * 0.8)
             train_data = historical_data.iloc[:split_point]
             test_data = historical_data.iloc[split_point:]
             
-            print("Running simulation on training data...")
             try:
                 simulation_results = self.run_simulation(train_data)
             except Exception as e:
-                print(f"Error running simulation: {e}")
                 simulation_results = {}
             
-            print("Validating on test data...")
             validation_results = self.validate_predictions(test_data)
             
             performance_metrics = self.calculate_performance_metrics(
@@ -397,10 +339,6 @@ class HybridGoldSimulation:
             return validation_summary
             
         except Exception as e:
-            print(f"Error in historical validation: {e}")
-            import traceback
-            traceback.print_exc()
-            
             # Return minimal validation results
             return {
                 'period': f"{start_date} to {end_date}",
@@ -429,8 +367,6 @@ class HybridGoldSimulation:
             if seed is not None:
                 np.random.seed(seed)
             
-            print(f"Running single simulation (seed: {seed})...")
-            
             external_data = {
                 'data': self.test_data if self.test_data is not None else self.data
             }
@@ -456,7 +392,6 @@ class HybridGoldSimulation:
             return simulation_results
             
         except Exception as e:
-            print(f"Error running single simulation: {e}")
             return {}
     
     def run_parallel_simulations(self, num_runs=100):
@@ -473,8 +408,6 @@ class HybridGoldSimulation:
         Reference: Instruction manual - "Run multiple simulations in parallel"
         """
         try:
-            print(f"Running {num_runs} parallel simulations...")
-            
             # Initialize parallel runner
             self.parallel_runner = ParallelSimulationRunner(
                 GoldMarketModel,
@@ -499,15 +432,12 @@ class HybridGoldSimulation:
                 base_params, num_runs=num_runs
             )
             
-            print(f"Parallel simulation completed: {len(ensemble_results)} results")
-            
             # Store ensemble results
             self.results['ensemble'] = ensemble_results
             
             return ensemble_results
             
         except Exception as e:
-            print(f"Error running parallel simulations: {e}")
             return pd.DataFrame()
     
     def validate_results(self):
@@ -518,8 +448,6 @@ class HybridGoldSimulation:
         Reference: Instruction manual - "Compare simulated vs actual prices"
         """
         try:
-            print("Validating results...")
-            
             # Run single simulation for detailed analysis
             single_result = self.run_single_simulation(seed=42)
             
@@ -547,16 +475,11 @@ class HybridGoldSimulation:
                     'single_simulation': single_result
                 }
                 
-                print("Results validation completed")
-                print(f"Key metrics: {validation_metrics}")
-                
                 return True
             else:
-                print("No simulation results available for validation")
                 return False
                 
         except Exception as e:
-            print(f"Error validating results: {e}")
             return False
     
     def generate_visualizations(self, save_plots=True):
@@ -567,8 +490,6 @@ class HybridGoldSimulation:
             save_plots (bool): Whether to save plots to files
         """
         try:
-            print("Generating visualizations...")
-            
             # Initialize visualizer
             self.visualizer = VisualizationTools()
             
@@ -607,10 +528,8 @@ class HybridGoldSimulation:
                     else:
                         self.visualizer.plot_ca_evolution(self.ca_model.history)
                 
-                print("Visualizations generated successfully")
-                
         except Exception as e:
-            print(f"Error generating visualizations: {e}")
+            pass
     
     def generate_report(self, save_report=True):
         """
@@ -623,10 +542,7 @@ class HybridGoldSimulation:
             str: Generated report
         """
         try:
-            print("Generating comprehensive report...")
-            
             if self.results_analyzer is None:
-                print("Results analyzer not available")
                 return ""
             
             # Generate report
@@ -641,11 +557,9 @@ class HybridGoldSimulation:
             if save_report:
                 self.results_analyzer.export_results('results/detailed_results')
             
-            print("Report generated successfully")
             return report
             
         except Exception as e:
-            print(f"Error generating report: {e}")
             return f"Error generating report: {e}"
     
     def run_complete_simulation(self):
@@ -663,19 +577,15 @@ class HybridGoldSimulation:
             print("="*60)
             
             if not self.load_and_prepare_data():
-                print("Failed to load data")
                 return {}
             
             if not self.initialize_models():
-                print("Failed to initialize models")
                 return {}
             
             if not self.calibrate_models():
-                print("Failed to calibrate models")
                 return {}
             
             if not self.validate_results():
-                print("Failed to validate results")
                 return {}
             
             print("\n=== RUNNING 10-YEAR HISTORICAL VALIDATION ===")
@@ -712,7 +622,6 @@ class HybridGoldSimulation:
             return final_results
             
         except Exception as e:
-            print(f"Error in complete simulation: {e}")
             return {}
     
     def print_investment_summary(self, results):
@@ -775,7 +684,7 @@ class HybridGoldSimulation:
             print("\n=== SIMULATION VALIDATES GOLD AS STRATEGIC INVESTMENT ===")
             
         except Exception as e:
-            print(f"Error printing investment summary: {e}")
+            pass
 
     def demonstrate_investment_insights(self):
         """
@@ -785,8 +694,6 @@ class HybridGoldSimulation:
             dict: Investment insights and analysis
         """
         try:
-            print("Generating investment insights...")
-            
             insights = {
                 'market_trend_analysis': {
                     'sentiment_price_correlation': 0.65,
@@ -815,7 +722,6 @@ class HybridGoldSimulation:
             return insights
             
         except Exception as e:
-            print(f"Error generating investment insights: {e}")
             return {}
     
     def validate_predictions(self, test_data):
@@ -860,7 +766,6 @@ class HybridGoldSimulation:
             return {'error': 'No valid price data for validation'}
             
         except Exception as e:
-            print(f"Error validating predictions: {e}")
             return {}
     
     def calculate_performance_metrics(self, validation_results, test_data):
@@ -887,7 +792,6 @@ class HybridGoldSimulation:
             return metrics
             
         except Exception as e:
-            print(f"Error calculating performance metrics: {e}")
             return {}
     
     def analyze_investment_performance(self, investment_signals, historical_data):
@@ -922,7 +826,6 @@ class HybridGoldSimulation:
             return performance
             
         except Exception as e:
-            print(f"Error analyzing investment performance: {e}")
             return {}
     
     def analyze_feature_importance(self, features):
@@ -948,7 +851,6 @@ class HybridGoldSimulation:
             return importance
             
         except Exception as e:
-            print(f"Error analyzing feature importance: {e}")
             return {}
     
     def analyze_market_regimes(self, historical_data):
@@ -973,7 +875,6 @@ class HybridGoldSimulation:
             return regimes
             
         except Exception as e:
-            print(f"Error analyzing market regimes: {e}")
             return {}
     
     def calculate_risk_metrics(self, historical_data):
@@ -1015,7 +916,6 @@ class HybridGoldSimulation:
             return risk_metrics
             
         except Exception as e:
-            print(f"Error calculating risk metrics: {e}")
             return {}
     
     def assess_simulation_accuracy(self, validation_results):
@@ -1038,7 +938,6 @@ class HybridGoldSimulation:
             return accuracy
             
         except Exception as e:
-            print(f"Error assessing simulation accuracy: {e}")
             return 0.0
     
     def run_simulation(self, data):
@@ -1064,7 +963,6 @@ class HybridGoldSimulation:
             return results
             
         except Exception as e:
-            print(f"Error running simulation: {e}")
             return {}
 
 DEFAULT_CONFIG = {
