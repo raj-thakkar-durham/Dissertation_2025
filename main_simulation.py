@@ -534,4 +534,3 @@ if __name__ == "__main__":
     
     # Generate report
     report = simulation.generate_report(save_path='results/simulation_report.md')
-    print("Simulation completed successfully.")
