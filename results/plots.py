@@ -55,7 +55,10 @@ class VisualizationTools:
             Wilkinson, L. (2005). The Grammar of Graphics. Springer, New York.
         """
         # Academic matplotlib style
-        plt.style.use('seaborn-v0_8')
+        try:
+            plt.style.use('seaborn-v0_8')
+        except:
+            plt.style.use('seaborn')
         
         # Publication-quality parameters
         plt.rcParams.update({
@@ -124,9 +127,14 @@ class VisualizationTools:
             Cleveland, W.S. (1993). Visualizing Data. Hobart Press, Summit, NJ.
         """
         try:
+            # Validate inputs
+            if not isinstance(results, dict):
+                print("Warning: Results must be a dictionary")
+                return
+                
             # Create comprehensive figure layout
             fig = plt.figure(figsize=(18, 14))
-            gs = fig.add_gridspec(3, 3, hspace=0.3, wspace=0.3)
+            gs = fig.add_gridspec(3, 3, hspace=0.35, wspace=0.35)
 
             # Main title with academic formatting
             fig.suptitle('Hybrid Gold Price Prediction: Simulation Analysis\n'
@@ -135,148 +143,223 @@ class VisualizationTools:
 
             # Panel 1: Price Evolution Comparison
             ax1 = fig.add_subplot(gs[0, :2])
-            if 'price_series' in results:
-                price_series = results['price_series']
-                dates = pd.date_range(start='2023-01-01', periods=len(price_series), freq='D')
-                
-                ax1.plot(dates, price_series, label='Simulated Price', 
-                        color=self.color_palette[0], linewidth=2.5, alpha=0.8)
-                
-                if actual_data is not None and 'Close' in actual_data.columns:
-                    min_len = min(len(price_series), len(actual_data))
-                    actual_subset = actual_data['Close'][:min_len]
-                    ax1.plot(dates[:min_len], actual_subset, 
-                            label='Actual Price', color=self.color_palette[1], 
-                            linewidth=2.5, alpha=0.8, linestyle='--')
-                
-                ax1.set_title('Gold Price Evolution: Simulation vs Reality', fontweight='bold')
-                ax1.set_xlabel('Trading Days')
-                ax1.set_ylabel('Gold Price (USD/oz)')
-                ax1.legend(frameon=True, fancybox=True, shadow=True)
-                ax1.grid(True, alpha=0.3)
+            if 'price_series' in results and results['price_series'] is not None:
+                price_series = np.array(results['price_series'])
+                if len(price_series) > 0:
+                    dates = pd.date_range(start='2023-01-01', periods=len(price_series), freq='D')
+                    
+                    ax1.plot(dates, price_series, label='Simulated Price', 
+                            color=self.color_palette[0], linewidth=2.5, alpha=0.8)
+                    
+                    if actual_data is not None and isinstance(actual_data, pd.DataFrame) and 'Close' in actual_data.columns:
+                        min_len = min(len(price_series), len(actual_data))
+                        actual_subset = actual_data['Close'].iloc[:min_len]
+                        ax1.plot(dates[:min_len], actual_subset, 
+                                label='Actual Price', color=self.color_palette[1], 
+                                linewidth=2.5, alpha=0.8, linestyle='--')
+                    
+                    ax1.set_title('Gold Price Evolution: Simulation vs Reality', fontweight='bold')
+                    ax1.set_xlabel('Trading Days')
+                    ax1.set_ylabel('Gold Price (USD/oz)')
+                    ax1.legend(frameon=True, fancybox=True, shadow=True)
+                    ax1.grid(True, alpha=0.3)
+                    
+                    # Format x-axis for better readability
+                    ax1.tick_params(axis='x', rotation=45)
+            else:
+                ax1.text(0.5, 0.5, 'Price Series\nNot Available', 
+                        ha='center', va='center', transform=ax1.transAxes,
+                        fontsize=12, style='italic')
 
             # Panel 2: Return Distribution Analysis
             ax2 = fig.add_subplot(gs[0, 2])
-            if 'price_series' in results:
-                returns = np.diff(price_series) / price_series[:-1]
-                
-                # Histogram with statistical overlay
-                ax2.hist(returns, bins=30, alpha=0.7, color=self.color_palette[2], 
-                        density=True, edgecolor='black', linewidth=0.5)
-                
-                # Normal distribution overlay
-                mu, sigma = np.mean(returns), np.std(returns)
-                x = np.linspace(returns.min(), returns.max(), 100)
-                ax2.plot(x, (1/(sigma * np.sqrt(2 * np.pi))) * 
-                        np.exp(-0.5 * ((x - mu) / sigma) ** 2), 
-                        'r--', linewidth=2, label=f'Normal(μ={mu:.4f}, σ={sigma:.4f})')
-                
-                ax2.axvline(mu, color='red', linestyle='-', alpha=0.8, 
-                           label=f'Mean: {mu:.4f}')
-                ax2.set_title('Return Distribution\nAnalysis', fontweight='bold')
-                ax2.set_xlabel('Daily Returns')
-                ax2.set_ylabel('Density')
-                ax2.legend(fontsize=9)
+            if 'price_series' in results and results['price_series'] is not None:
+                price_series = np.array(results['price_series'])
+                if len(price_series) > 1:
+                    returns = np.diff(price_series) / price_series[:-1]
+                    returns = returns[np.isfinite(returns)]  # Remove inf/nan values
+                    
+                    if len(returns) > 0:
+                        # Histogram with statistical overlay
+                        n_bins = min(30, max(10, len(returns) // 10))
+                        ax2.hist(returns, bins=n_bins, alpha=0.7, color=self.color_palette[2], 
+                                density=True, edgecolor='black', linewidth=0.5)
+                        
+                        # Normal distribution overlay
+                        mu, sigma = np.mean(returns), np.std(returns)
+                        if sigma > 0:
+                            x = np.linspace(returns.min(), returns.max(), 100)
+                            ax2.plot(x, (1/(sigma * np.sqrt(2 * np.pi))) * 
+                                    np.exp(-0.5 * ((x - mu) / sigma) ** 2), 
+                                    'r--', linewidth=2, label=f'Normal(μ={mu:.4f}, σ={sigma:.4f})')
+                        
+                        ax2.axvline(mu, color='red', linestyle='-', alpha=0.8, 
+                                   label=f'Mean: {mu:.4f}')
+                        ax2.set_title('Return Distribution\nAnalysis', fontweight='bold')
+                        ax2.set_xlabel('Daily Returns')
+                        ax2.set_ylabel('Density')
+                        ax2.legend(fontsize=9)
+                        ax2.grid(True, alpha=0.3)
+            else:
+                ax2.text(0.5, 0.5, 'Return Data\nNot Available', 
+                        ha='center', va='center', transform=ax2.transAxes,
+                        fontsize=12, style='italic')
 
             # Panel 3: Volatility Clustering
             ax3 = fig.add_subplot(gs[1, 0])
-            if 'price_series' in results:
-                returns = np.diff(price_series) / price_series[:-1]
-                rolling_vol = pd.Series(returns).rolling(window=20, min_periods=1).std()
-                
-                ax3.plot(dates[1:len(rolling_vol)+1], rolling_vol, 
-                        color=self.color_palette[3], linewidth=2)
-                ax3.set_title('Volatility Clustering\n(20-day Rolling)', fontweight='bold')
-                ax3.set_xlabel('Date')
-                ax3.set_ylabel('Volatility')
-                ax3.grid(True, alpha=0.3)
+            if 'price_series' in results and results['price_series'] is not None:
+                price_series = np.array(results['price_series'])
+                if len(price_series) > 20:
+                    returns = np.diff(price_series) / price_series[:-1]
+                    returns = returns[np.isfinite(returns)]
+                    
+                    if len(returns) > 20:
+                        rolling_vol = pd.Series(returns).rolling(window=20, min_periods=1).std()
+                        dates = pd.date_range(start='2023-01-01', periods=len(rolling_vol), freq='D')
+                        
+                        ax3.plot(dates, rolling_vol, color=self.color_palette[3], linewidth=2)
+                        ax3.set_title('Volatility Clustering\n(20-day Rolling)', fontweight='bold')
+                        ax3.set_xlabel('Date')
+                        ax3.set_ylabel('Volatility')
+                        ax3.grid(True, alpha=0.3)
+                        ax3.tick_params(axis='x', rotation=45)
+            else:
+                ax3.text(0.5, 0.5, 'Volatility Data\nNot Available', 
+                        ha='center', va='center', transform=ax3.transAxes,
+                        fontsize=12, style='italic')
 
             # Panel 4: Agent Performance Analysis
             ax4 = fig.add_subplot(gs[1, 1])
-            if 'agent_performances' in results:
+            if 'agent_performances' in results and results['agent_performances']:
                 agent_types = list(results['agent_performances'].keys())
-                pnl_values = [results['agent_performances'][agent]['total_pnl'] 
-                             for agent in agent_types]
+                pnl_values = []
                 
-                bars = ax4.bar(agent_types, pnl_values, 
-                              color=self.color_palette[:len(agent_types)], 
-                              alpha=0.8, edgecolor='black', linewidth=0.5)
+                for agent in agent_types:
+                    pnl = results['agent_performances'][agent].get('total_pnl', 0)
+                    pnl_values.append(pnl)
                 
-                # Add value labels on bars
-                for bar, value in zip(bars, pnl_values):
-                    height = bar.get_height()
-                    ax4.text(bar.get_x() + bar.get_width()/2., height,
-                            f'${value:.0f}', ha='center', va='bottom', fontweight='bold')
-                
-                ax4.set_title('Agent Performance\n(Total P&L)', fontweight='bold')
-                ax4.set_ylabel('Profit/Loss (USD)')
-                ax4.tick_params(axis='x', rotation=45)
-                ax4.axhline(y=0, color='black', linestyle='-', alpha=0.3)
+                if agent_types and pnl_values:
+                    bars = ax4.bar(agent_types, pnl_values, 
+                                  color=self.color_palette[:len(agent_types)], 
+                                  alpha=0.8, edgecolor='black', linewidth=0.5)
+                    
+                    # Add value labels on bars
+                    for bar, value in zip(bars, pnl_values):
+                        height = bar.get_height()
+                        ax4.text(bar.get_x() + bar.get_width()/2., 
+                                height + (max(pnl_values) - min(pnl_values)) * 0.01,
+                                f'${value:.0f}', ha='center', va='bottom', fontweight='bold', fontsize=9)
+                    
+                    ax4.set_title('Agent Performance\n(Total P&L)', fontweight='bold')
+                    ax4.set_ylabel('Profit/Loss (USD)')
+                    ax4.tick_params(axis='x', rotation=45)
+                    ax4.axhline(y=0, color='black', linestyle='-', alpha=0.3)
+                    ax4.grid(True, alpha=0.3)
+            else:
+                ax4.text(0.5, 0.5, 'Agent Performance\nData Not Available', 
+                        ha='center', va='center', transform=ax4.transAxes,
+                        fontsize=12, style='italic')
 
             # Panel 5: Trading Volume Evolution
             ax5 = fig.add_subplot(gs[1, 2])
-            if 'data_collector' in results:
+            if 'data_collector' in results and results['data_collector'] is not None:
                 try:
                     model_data = results['data_collector'].get_model_vars_dataframe()
-                    if 'Volume' in model_data.columns:
-                        ax5.plot(model_data.index, model_data['Volume'], 
-                                color=self.color_palette[4], linewidth=2)
-                        ax5.set_title('Trading Volume\nEvolution', fontweight='bold')
-                        ax5.set_xlabel('Time Step')
-                        ax5.set_ylabel('Volume')
-                        ax5.grid(True, alpha=0.3)
+                    if isinstance(model_data, pd.DataFrame) and 'Volume' in model_data.columns:
+                        volume_data = model_data['Volume'].dropna()
+                        if len(volume_data) > 0:
+                            ax5.plot(volume_data.index, volume_data, 
+                                    color=self.color_palette[4], linewidth=2)
+                            ax5.set_title('Trading Volume\nEvolution', fontweight='bold')
+                            ax5.set_xlabel('Time Step')
+                            ax5.set_ylabel('Volume')
+                            ax5.grid(True, alpha=0.3)
+                        else:
+                            raise ValueError("No volume data available")
+                    else:
+                        raise ValueError("Volume column not found")
                 except:
                     ax5.text(0.5, 0.5, 'Volume Data\nUnavailable', 
                             ha='center', va='center', transform=ax5.transAxes,
                             fontsize=12, style='italic')
+            else:
+                ax5.text(0.5, 0.5, 'Volume Data\nUnavailable', 
+                        ha='center', va='center', transform=ax5.transAxes,
+                        fontsize=12, style='italic')
 
             # Panel 6: Cellular Automaton Signal
             ax6 = fig.add_subplot(gs[2, 0])
-            if 'data_collector' in results:
+            if 'data_collector' in results and results['data_collector'] is not None:
                 try:
                     model_data = results['data_collector'].get_model_vars_dataframe()
-                    if 'CA_Signal' in model_data.columns:
-                        ax6.plot(model_data.index, model_data['CA_Signal'], 
-                                color=self.color_palette[5], linewidth=2.5)
-                        ax6.axhline(y=0, color='black', linestyle='--', alpha=0.5)
-                        ax6.fill_between(model_data.index, model_data['CA_Signal'], 0, 
-                                       alpha=0.3, color=self.color_palette[5])
-                        ax6.set_title('Cellular Automaton\nMarket Signal', fontweight='bold')
-                        ax6.set_xlabel('Time Step')
-                        ax6.set_ylabel('CA Signal')
-                        ax6.grid(True, alpha=0.3)
+                    if isinstance(model_data, pd.DataFrame) and 'CA_Signal' in model_data.columns:
+                        ca_signal_data = model_data['CA_Signal'].dropna()
+                        if len(ca_signal_data) > 0:
+                            ax6.plot(ca_signal_data.index, ca_signal_data, 
+                                    color=self.color_palette[5], linewidth=2.5)
+                            ax6.axhline(y=0, color='black', linestyle='--', alpha=0.5)
+                            ax6.fill_between(ca_signal_data.index, ca_signal_data, 0, 
+                                           alpha=0.3, color=self.color_palette[5])
+                            ax6.set_title('Cellular Automaton\nMarket Signal', fontweight='bold')
+                            ax6.set_xlabel('Time Step')
+                            ax6.set_ylabel('CA Signal')
+                            ax6.grid(True, alpha=0.3)
+                        else:
+                            raise ValueError("No CA signal data available")
+                    else:
+                        raise ValueError("CA_Signal column not found")
                 except:
                     ax6.text(0.5, 0.5, 'CA Signal\nUnavailable', 
                             ha='center', va='center', transform=ax6.transAxes,
                             fontsize=12, style='italic')
+            else:
+                ax6.text(0.5, 0.5, 'CA Signal\nUnavailable', 
+                        ha='center', va='center', transform=ax6.transAxes,
+                        fontsize=12, style='italic')
 
             # Panel 7: Risk-Return Scatter
             ax7 = fig.add_subplot(gs[2, 1])
-            if 'agent_performances' in results:
+            if 'agent_performances' in results and results['agent_performances']:
                 agent_types = list(results['agent_performances'].keys())
-                returns_data = [results['agent_performances'][agent]['total_pnl'] 
-                               for agent in agent_types]
-                risk_data = [abs(results['agent_performances'][agent]['total_pnl']) * 0.1 
-                            for agent in agent_types]  # Proxy risk measure
+                returns_data = []
+                risk_data = []
                 
-                scatter = ax7.scatter(risk_data, returns_data, 
-                                     c=range(len(agent_types)), 
-                                     cmap='viridis', alpha=0.7, s=100, edgecolors='black')
+                for agent in agent_types:
+                    pnl = results['agent_performances'][agent].get('total_pnl', 0)
+                    returns_data.append(pnl)
+                    # Proxy risk measure based on absolute PnL
+                    risk_data.append(abs(pnl) * 0.1 + np.random.normal(0, 0.1))
                 
-                for i, agent_type in enumerate(agent_types):
-                    ax7.annotate(agent_type.replace('_', ' ').title(), 
-                               (risk_data[i], returns_data[i]),
-                               xytext=(5, 5), textcoords='offset points', fontsize=9)
-                
-                ax7.set_title('Agent Risk-Return\nProfile', fontweight='bold')
-                ax7.set_xlabel('Risk Measure')
-                ax7.set_ylabel('Returns (USD)')
-                ax7.grid(True, alpha=0.3)
+                if len(returns_data) > 0 and len(risk_data) > 0:
+                    scatter = ax7.scatter(risk_data, returns_data, 
+                                         c=range(len(agent_types)), 
+                                         cmap='viridis', alpha=0.7, s=100, edgecolors='black')
+                    
+                    for i, agent_type in enumerate(agent_types):
+                        clean_name = agent_type.replace('_', ' ').replace('Agent', '').title()
+                        ax7.annotate(clean_name, 
+                                   (risk_data[i], returns_data[i]),
+                                   xytext=(5, 5), textcoords='offset points', fontsize=9)
+                    
+                    ax7.set_title('Agent Risk-Return\nProfile', fontweight='bold')
+                    ax7.set_xlabel('Risk Measure')
+                    ax7.set_ylabel('Returns (USD)')
+                    ax7.grid(True, alpha=0.3)
+            else:
+                ax7.text(0.5, 0.5, 'Risk-Return\nData Not Available', 
+                        ha='center', va='center', transform=ax7.transAxes,
+                        fontsize=12, style='italic')
 
             # Panel 8: Performance Summary Statistics
             ax8 = fig.add_subplot(gs[2, 2])
-            if 'market_statistics' in results:
+            if 'market_statistics' in results and results['market_statistics']:
                 stats = results['market_statistics']
+                
+                # Create text-based summary with error handling
+                ax8.axis('off')
+                ax8.text(0.5, 0.9, 'Market Statistics', ha='center', va='top', 
+                        fontsize=14, fontweight='bold', transform=ax8.transAxes)
+                
                 metrics = ['Final Price', 'Price Change (%)', 'Max Price', 'Min Price']
                 values = [
                     f"${stats.get('final_price', 0):.2f}",
@@ -285,17 +368,18 @@ class VisualizationTools:
                     f"${stats.get('min_price', 0):.2f}"
                 ]
                 
-                # Create text-based summary
-                ax8.axis('off')
-                ax8.text(0.5, 0.9, 'Market Statistics', ha='center', va='top', 
-                        fontsize=14, fontweight='bold', transform=ax8.transAxes)
-                
                 for i, (metric, value) in enumerate(zip(metrics, values)):
                     y_pos = 0.7 - i * 0.15
                     ax8.text(0.1, y_pos, metric + ':', ha='left', va='center', 
-                            fontweight='bold', transform=ax8.transAxes)
+                            fontweight='bold', transform=ax8.transAxes, fontsize=11)
                     ax8.text(0.9, y_pos, value, ha='right', va='center', 
-                            transform=ax8.transAxes)
+                            transform=ax8.transAxes, fontsize=11)
+            else:
+                # Default statistics panel
+                ax8.axis('off')
+                ax8.text(0.5, 0.5, 'Market Statistics\nNot Available', 
+                        ha='center', va='center', transform=ax8.transAxes,
+                        fontsize=12, style='italic')
 
             # Add academic footer
             fig.text(0.5, 0.02, 
@@ -306,11 +390,23 @@ class VisualizationTools:
             plt.tight_layout(rect=[0, 0.03, 1, 0.95])
             
             if save_path:
-                plt.savefig(save_path, dpi=300, bbox_inches='tight')
+                try:
+                    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+                    print(f"Plot saved to {save_path}")
+                except Exception as e:
+                    print(f"Warning: Could not save plot - {str(e)}")
+            
             plt.show()
 
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Error in plot_simulation_results: {str(e)}")
+            # Create a simple fallback plot
+            fig, ax = plt.subplots(figsize=(10, 6))
+            ax.text(0.5, 0.5, f'Error generating visualization:\n{str(e)}', 
+                   ha='center', va='center', transform=ax.transAxes,
+                   fontsize=12, bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+            ax.set_title('Visualization Error')
+            plt.show()
 
     def plot_ca_evolution(self, ca_states, save_path=None):
         """
@@ -327,7 +423,19 @@ class VisualizationTools:
             Wolfram, S. (2002). A New Kind of Science. Wolfram Media.
         """
         try:
-            if not ca_states:
+            # Input validation
+            if not ca_states or not isinstance(ca_states, (list, tuple)):
+                print("Warning: CA states must be a non-empty list")
+                return
+                
+            # Filter out invalid states
+            valid_states = []
+            for state in ca_states:
+                if state is not None and hasattr(state, 'shape') and len(state.shape) == 2:
+                    valid_states.append(state)
+                    
+            if not valid_states:
+                print("Warning: No valid CA states found")
                 return
 
             # Academic figure layout
@@ -344,38 +452,62 @@ class VisualizationTools:
             cmap = plt.matplotlib.colors.ListedColormap(colors)
 
             # Select representative time steps
-            num_plots = min(6, len(ca_states))
-            time_steps = np.linspace(0, len(ca_states)-1, num_plots, dtype=int)
+            num_plots = min(6, len(valid_states))
+            if num_plots == 0:
+                print("Warning: No valid states to plot")
+                return
+                
+            time_steps = np.linspace(0, len(valid_states)-1, num_plots, dtype=int)
 
             for i, step in enumerate(time_steps):
                 ax = axes[i]
-                grid = ca_states[step]
+                grid = np.array(valid_states[step])
+                
+                # Ensure grid values are in valid range
+                grid = np.clip(grid, -1, 1)
                 
                 # Create heatmap visualization
-                im = ax.imshow(grid, cmap=cmap, vmin=-1, vmax=1, aspect='equal')
+                im = ax.imshow(grid, cmap=cmap, vmin=-1, vmax=1, aspect='equal', interpolation='nearest')
                 ax.set_title(f'Evolution Step {step}\n'
-                           f'Market Sentiment Configuration', fontweight='bold')
+                           f'Market Sentiment Configuration', fontweight='bold', fontsize=11)
+                
+                # Remove axis ticks for cleaner appearance
+                ax.set_xticks([])
+                ax.set_yticks([])
                 
                 # Statistical annotations
-                bullish_ratio = np.sum(grid == 1) / grid.size
-                bearish_ratio = np.sum(grid == -1) / grid.size
-                neutral_ratio = np.sum(grid == 0) / grid.size
-                
-                # Add statistical text box
-                stats_text = (f'Bullish: {bullish_ratio:.1%}\n'
-                            f'Bearish: {bearish_ratio:.1%}\n'
-                            f'Neutral: {neutral_ratio:.1%}')
-                
-                ax.text(0.02, 0.98, stats_text, transform=ax.transAxes, 
-                       verticalalignment='top', fontsize=9,
-                       bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
+                try:
+                    bullish_ratio = np.sum(grid == 1) / grid.size if grid.size > 0 else 0
+                    bearish_ratio = np.sum(grid == -1) / grid.size if grid.size > 0 else 0
+                    neutral_ratio = np.sum(grid == 0) / grid.size if grid.size > 0 else 0
+                    
+                    # Add statistical text box
+                    stats_text = (f'Bullish: {bullish_ratio:.1%}\n'
+                                f'Bearish: {bearish_ratio:.1%}\n'
+                                f'Neutral: {neutral_ratio:.1%}')
+                    
+                    ax.text(0.02, 0.98, stats_text, transform=ax.transAxes, 
+                           verticalalignment='top', fontsize=9,
+                           bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
+                except Exception as e:
+                    # Fallback for statistical calculation errors
+                    ax.text(0.02, 0.98, 'Stats\nUnavailable', transform=ax.transAxes,
+                           verticalalignment='top', fontsize=9,
+                           bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
+
+            # Hide unused subplots
+            for i in range(num_plots, len(axes)):
+                axes[i].axis('off')
 
             # Add shared colorbar
-            cbar = fig.colorbar(im, ax=axes, orientation='horizontal', 
-                              fraction=0.05, pad=0.08, shrink=0.8)
-            cbar.set_ticks([-1, 0, 1])
-            cbar.set_ticklabels(labels)
-            cbar.set_label('Market Sentiment State', fontweight='bold')
+            try:
+                cbar = fig.colorbar(im, ax=axes, orientation='horizontal', 
+                                  fraction=0.05, pad=0.08, shrink=0.8)
+                cbar.set_ticks([-1, 0, 1])
+                cbar.set_ticklabels(labels)
+                cbar.set_label('Market Sentiment State', fontweight='bold')
+            except:
+                pass
 
             # Academic citation
             fig.text(0.5, 0.02, 
@@ -385,11 +517,23 @@ class VisualizationTools:
             plt.tight_layout(rect=[0, 0.08, 1, 0.92])
             
             if save_path:
-                plt.savefig(save_path, dpi=300, bbox_inches='tight')
+                try:
+                    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+                    print(f"CA evolution plot saved to {save_path}")
+                except Exception as e:
+                    print(f"Warning: Could not save CA evolution plot - {str(e)}")
+                    
             plt.show()
 
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Error in plot_ca_evolution: {str(e)}")
+            # Create fallback visualization
+            fig, ax = plt.subplots(figsize=(10, 6))
+            ax.text(0.5, 0.5, f'Error generating CA evolution plot:\n{str(e)}', 
+                   ha='center', va='center', transform=ax.transAxes,
+                   fontsize=12, bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+            ax.set_title('CA Evolution Visualization Error')
+            plt.show()
 
     def create_interactive_dashboard(self, results, save_path=None):
         """
@@ -403,6 +547,11 @@ class VisualizationTools:
             save_path (str): HTML file save path for dashboard
         """
         try:
+            # Input validation
+            if not isinstance(results, dict):
+                print("Warning: Results must be a dictionary")
+                return
+                
             # Create comprehensive subplot layout
             fig = make_subplots(
                 rows=3, cols=2,
@@ -420,82 +569,128 @@ class VisualizationTools:
             )
 
             # Panel 1: Enhanced Price Evolution
-            if 'price_series' in results:
-                price_series = results['price_series']
-                dates = pd.date_range(start='2023-01-01', periods=len(price_series), freq='D')
-                
-                # Main price line
-                fig.add_trace(
-                    go.Scatter(x=dates, y=price_series, mode='lines', name='Simulated Price',
-                             line=dict(color='#1f77b4', width=3),
-                             hovertemplate='Date: %{x}<br>Price: $%{y:.2f}<extra></extra>'),
-                    row=1, col=1
-                )
-                
-                # Add confidence bands
-                volatility = np.std(np.diff(price_series) / price_series[:-1])
-                upper_band = [p * (1 + 2*volatility) for p in price_series]
-                lower_band = [p * (1 - 2*volatility) for p in price_series]
-                
-                fig.add_trace(
-                    go.Scatter(x=dates, y=upper_band, mode='lines', 
-                             line=dict(width=0), showlegend=False, name='Upper'),
-                    row=1, col=1
-                )
-                fig.add_trace(
-                    go.Scatter(x=dates, y=lower_band, mode='lines', 
-                             line=dict(width=0), fill='tonexty', 
-                             fillcolor='rgba(31, 119, 180, 0.2)',
-                             showlegend=True, name='Confidence Band'),
-                    row=1, col=1
-                )
+            if 'price_series' in results and results['price_series'] is not None:
+                price_series = np.array(results['price_series'])
+                if len(price_series) > 0:
+                    dates = pd.date_range(start='2023-01-01', periods=len(price_series), freq='D')
+                    
+                    # Main price line
+                    fig.add_trace(
+                        go.Scatter(x=dates, y=price_series, mode='lines', name='Simulated Price',
+                                 line=dict(color='#1f77b4', width=3),
+                                 hovertemplate='Date: %{x}<br>Price: $%{y:.2f}<extra></extra>'),
+                        row=1, col=1
+                    )
+                    
+                    # Add confidence bands if we have enough data
+                    if len(price_series) > 20:
+                        try:
+                            returns = np.diff(price_series) / price_series[:-1]
+                            returns = returns[np.isfinite(returns)]
+                            if len(returns) > 0:
+                                volatility = np.std(returns)
+                                upper_band = [p * (1 + 2*volatility) for p in price_series]
+                                lower_band = [p * (1 - 2*volatility) for p in price_series]
+                                
+                                fig.add_trace(
+                                    go.Scatter(x=dates, y=upper_band, mode='lines', 
+                                             line=dict(width=0), showlegend=False, name='Upper'),
+                                    row=1, col=1
+                                )
+                                fig.add_trace(
+                                    go.Scatter(x=dates, y=lower_band, mode='lines', 
+                                             line=dict(width=0), fill='tonexty', 
+                                             fillcolor='rgba(31, 119, 180, 0.2)',
+                                             showlegend=True, name='Confidence Band'),
+                                    row=1, col=1
+                                )
+                        except:
+                            pass  # Skip confidence bands if calculation fails
 
             # Panel 2: Agent Performance Matrix
-            if 'agent_performances' in results:
-                agent_types = list(results['agent_performances'].keys())
-                pnl_values = [results['agent_performances'][agent]['total_pnl'] 
-                             for agent in agent_types]
-                win_rates = [results['agent_performances'][agent]['win_rate'] * 100
-                           for agent in agent_types]
-                
-                # Color-coded bars by performance
-                colors = ['red' if pnl < 0 else 'green' for pnl in pnl_values]
-                
-                fig.add_trace(
-                    go.Bar(x=agent_types, y=pnl_values, name='P&L Performance',
-                          marker_color=colors, 
-                          customdata=win_rates,
-                          hovertemplate='Agent: %{x}<br>P&L: $%{y:.2f}<br>Win Rate: %{customdata:.1f}%<extra></extra>'),
-                    row=1, col=2
-                )
+            if 'agent_performances' in results and results['agent_performances']:
+                try:
+                    agent_types = list(results['agent_performances'].keys())
+                    pnl_values = []
+                    win_rates = []
+                    
+                    for agent in agent_types:
+                        pnl = results['agent_performances'][agent].get('total_pnl', 0)
+                        win_rate = results['agent_performances'][agent].get('win_rate', 0) * 100
+                        pnl_values.append(pnl)
+                        win_rates.append(win_rate)
+                    
+                    if agent_types and pnl_values:
+                        # Color-coded bars by performance
+                        colors = ['red' if pnl < 0 else 'green' for pnl in pnl_values]
+                        
+                        fig.add_trace(
+                            go.Bar(x=agent_types, y=pnl_values, name='P&L Performance',
+                                  marker_color=colors, 
+                                  customdata=win_rates,
+                                  hovertemplate='Agent: %{x}<br>P&L: $%{y:.2f}<br>Win Rate: %{customdata:.1f}%<extra></extra>'),
+                            row=1, col=2
+                        )
+                except:
+                    pass
 
             # Panel 3: Interactive Return Distribution
-            if 'price_series' in results:
-                returns = np.diff(price_series) / price_series[:-1]
-                
-                fig.add_trace(
-                    go.Histogram(x=returns, nbinsx=40, name='Return Distribution',
-                               histnorm='probability density', opacity=0.7,
-                               marker_color='lightblue'),
-                    row=2, col=1
-                )
+            if 'price_series' in results and results['price_series'] is not None:
+                try:
+                    price_series = np.array(results['price_series'])
+                    if len(price_series) > 1:
+                        returns = np.diff(price_series) / price_series[:-1]
+                        returns = returns[np.isfinite(returns)]
+                        
+                        if len(returns) > 0:
+                            fig.add_trace(
+                                go.Histogram(x=returns, nbinsx=min(40, max(10, len(returns)//10)), 
+                                           name='Return Distribution',
+                                           histnorm='probability density', opacity=0.7,
+                                           marker_color='lightblue'),
+                                row=2, col=1
+                            )
+                except:
+                    pass
 
             # Panel 4: CA Signal Evolution
-            if 'data_collector' in results:
+            if 'data_collector' in results and results['data_collector'] is not None:
                 try:
                     model_data = results['data_collector'].get_model_vars_dataframe()
-                    if 'CA_Signal' in model_data.columns:
+                    if isinstance(model_data, pd.DataFrame) and 'CA_Signal' in model_data.columns:
+                        ca_signal_data = model_data['CA_Signal'].dropna()
+                        if len(ca_signal_data) > 0:
+                            fig.add_trace(
+                                go.Scatter(x=ca_signal_data.index, y=ca_signal_data,
+                                         mode='lines+markers', name='CA Signal',
+                                         line=dict(color='purple', width=2),
+                                         hovertemplate='Step: %{x}<br>Signal: %{y:.4f}<extra></extra>'),
+                                row=3, col=1
+                            )
+                            
+                            # Add zero reference line
+                            fig.add_hline(y=0, line_dash="dash", line_color="gray", 
+                                        row=3, col=1)
+                except:
+                    pass
+
+            # Panel 5: Market Regime Analysis (simplified scatter plot)
+            if 'agent_performances' in results and results['agent_performances']:
+                try:
+                    agent_types = list(results['agent_performances'].keys())
+                    x_values = list(range(len(agent_types)))
+                    y_values = [results['agent_performances'][agent].get('total_pnl', 0) 
+                               for agent in agent_types]
+                    
+                    if len(x_values) > 0 and len(y_values) > 0:
                         fig.add_trace(
-                            go.Scatter(x=model_data.index, y=model_data['CA_Signal'],
-                                     mode='lines+markers', name='CA Signal',
-                                     line=dict(color='purple', width=2),
-                                     hovertemplate='Step: %{x}<br>Signal: %{y:.4f}<extra></extra>'),
-                            row=3, col=1
+                            go.Scatter(x=x_values, y=y_values, mode='markers+text',
+                                     text=agent_types, textposition="top center",
+                                     marker=dict(size=10, color='blue', opacity=0.7),
+                                     name='Agent Performance',
+                                     hovertemplate='Agent: %{text}<br>P&L: $%{y:.2f}<extra></extra>'),
+                            row=3, col=2
                         )
-                        
-                        # Add zero reference line
-                        fig.add_hline(y=0, line_dash="dash", line_color="gray", 
-                                    row=3, col=1)
                 except:
                     pass
 
@@ -513,20 +708,46 @@ class VisualizationTools:
                 font=dict(family='Times New Roman', size=12)
             )
 
-            # Update axes labels
-            fig.update_xaxes(title_text="Trading Days", row=1, col=1)
-            fig.update_yaxes(title_text="Gold Price (USD/oz)", row=1, col=1)
-            fig.update_xaxes(title_text="Agent Type", row=1, col=2)
-            fig.update_yaxes(title_text="P&L (USD)", row=1, col=2)
-            fig.update_xaxes(title_text="Daily Returns", row=2, col=1)
-            fig.update_yaxes(title_text="Density", row=2, col=1)
-            fig.update_xaxes(title_text="Time Step", row=3, col=1)
-            fig.update_yaxes(title_text="CA Signal Strength", row=3, col=1)
+            # Update axes labels with error handling
+            try:
+                fig.update_xaxes(title_text="Trading Days", row=1, col=1)
+                fig.update_yaxes(title_text="Gold Price (USD/oz)", row=1, col=1)
+                fig.update_xaxes(title_text="Agent Type", row=1, col=2)
+                fig.update_yaxes(title_text="P&L (USD)", row=1, col=2)
+                fig.update_xaxes(title_text="Daily Returns", row=2, col=1)
+                fig.update_yaxes(title_text="Density", row=2, col=1)
+                fig.update_xaxes(title_text="Time Step", row=3, col=1)
+                fig.update_yaxes(title_text="CA Signal Strength", row=3, col=1)
+                fig.update_xaxes(title_text="Agent Index", row=3, col=2)
+                fig.update_yaxes(title_text="Performance", row=3, col=2)
+            except:
+                pass
 
             # Save and display
             if save_path:
-                fig.write_html(save_path)
+                try:
+                    fig.write_html(save_path)
+                    print(f"Interactive dashboard saved to {save_path}")
+                except Exception as e:
+                    print(f"Warning: Could not save dashboard - {str(e)}")
+                    
             fig.show()
 
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Error in create_interactive_dashboard: {str(e)}")
+            # Create simple fallback dashboard
+            try:
+                fig = go.Figure()
+                fig.add_annotation(
+                    text=f"Error creating dashboard:<br>{str(e)}",
+                    xref="paper", yref="paper",
+                    x=0.5, y=0.5, showarrow=False,
+                    font=dict(size=16)
+                )
+                fig.update_layout(
+                    title="Dashboard Generation Error",
+                    template='plotly_white'
+                )
+                fig.show()
+            except:
+                print("Could not create fallback dashboard")

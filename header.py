@@ -58,7 +58,7 @@ from numba import jit
 # Default configuration for reproducible research
 DEFAULT_CONFIG = {
     'start_date': '2014-01-01',
-    'end_date': '2024-01-01',
+    'end_date': '2015-01-01',
     'ca_grid_size': (20, 20),
     'ca_num_states': 3,
     'num_agents': 100,
